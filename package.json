@@ -1,0 +1,32 @@
+{
+  "name": "studygroupgen-websocket-server",
+  "version": "1.0.0",
+  "description": "WebSocket server for StudyGroupGen real-time chat",
+  "main": "websocket_server.js",
+  "scripts": {
+    "start": "node websocket_server.js",
+    "dev": "nodemon websocket_server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "websocket",
+    "chat",
+    "real-time",
+    "study-group",
+    "education"
+  ],
+  "author": "StudyGroupGen Team",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "mysql2": "^3.6.0",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+} 
