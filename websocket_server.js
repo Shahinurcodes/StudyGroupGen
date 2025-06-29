@@ -25,6 +25,13 @@ const dbConfig = {
 // Store active connections
 const activeConnections = new Map();
 const typingUsers = new Map();
+const rateLimitMap = new Map();
+
+// Rate limiting configuration
+const RATE_LIMIT = {
+    messages: 10, // messages per minute
+    connections: 5 // connections per minute per IP
+};
 
 // Database connection pool
 let pool;
@@ -39,11 +46,71 @@ async function initializeDatabase() {
     }
 }
 
+// Rate limiting function
+function checkRateLimit(userId, type) {
+    const now = Date.now();
+    const key = `${userId}_${type}`;
+    
+    if (!rateLimitMap.has(key)) {
+        rateLimitMap.set(key, []);
+    }
+    
+    const timestamps = rateLimitMap.get(key);
+    const windowStart = now - 60000; // 1 minute window
+    
+    // Remove old timestamps
+    const validTimestamps = timestamps.filter(timestamp => timestamp > windowStart);
+    rateLimitMap.set(key, validTimestamps);
+    
+    const limit = type === 'messages' ? RATE_LIMIT.messages : RATE_LIMIT.connections;
+    
+    if (validTimestamps.length >= limit) {
+        return false;
+    }
+    
+    validTimestamps.push(now);
+    return true;
+}
+
+// Input validation function
+function validateMessage(content) {
+    if (!content || typeof content !== 'string') {
+        return false;
+    }
+    
+    if (content.length > 1000) {
+        return false;
+    }
+    
+    // Check for potentially harmful content
+    const harmfulPatterns = [
+        /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
+        /javascript:/gi,
+        /on\w+\s*=/gi
+    ];
+    
+    return !harmfulPatterns.some(pattern => pattern.test(content));
+}
+
 // Socket.IO event handlers
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
     
     const { userId, userType, groupId, userName } = socket.handshake.query;
+    
+    // Validate connection parameters
+    if (!userId || !userType || !groupId || !userName) {
+        console.log('Invalid connection parameters, disconnecting');
+        socket.disconnect();
+        return;
+    }
+    
+    // Check rate limit for connections
+    if (!checkRateLimit(userId, 'connections')) {
+        console.log('Rate limit exceeded for connections');
+        socket.disconnect();
+        return;
+    }
     
     // Store connection info
     activeConnections.set(socket.id, {
@@ -69,7 +136,45 @@ io.on('connection', (socket) => {
     // Handle message sending
     socket.on('send_message', async (data, callback) => {
         try {
+            // Validate input
+            if (!data || !data.content || !data.group_id) {
+                if (callback) {
+                    callback({ success: false, error: 'Invalid message data' });
+                }
+                return;
+            }
+            
+            // Check rate limit
+            if (!checkRateLimit(userId, 'messages')) {
+                if (callback) {
+                    callback({ success: false, error: 'Rate limit exceeded. Please wait before sending another message.' });
+                }
+                return;
+            }
+            
+            // Validate message content
+            if (!validateMessage(data.content)) {
+                if (callback) {
+                    callback({ success: false, error: 'Invalid message content' });
+                }
+                return;
+            }
+            
             const connection = await pool.getConnection();
+            
+            // Verify user is member of the group
+            const [memberCheck] = await connection.execute(
+                'SELECT id FROM group_members WHERE group_id = ? AND student_id = ?',
+                [data.group_id, userId]
+            );
+            
+            if (memberCheck.length === 0 && userType === 'student') {
+                connection.release();
+                if (callback) {
+                    callback({ success: false, error: 'You are not a member of this group' });
+                }
+                return;
+            }
             
             // Insert message into database
             const [result] = await connection.execute(
@@ -118,13 +223,15 @@ io.on('connection', (socket) => {
         } catch (error) {
             console.error('Error sending message:', error);
             if (callback) {
-                callback({ success: false, error: error.message });
+                callback({ success: false, error: 'Failed to send message. Please try again.' });
             }
         }
     });
     
     // Handle typing indicators
     socket.on('typing', (data) => {
+        if (!data || !data.group_id) return;
+        
         typingUsers.set(socket.id, {
             userId: parseInt(userId),
             userName,
@@ -138,6 +245,8 @@ io.on('connection', (socket) => {
     });
     
     socket.on('stop_typing', (data) => {
+        if (!data || !data.group_id) return;
+        
         typingUsers.delete(socket.id);
         
         socket.to(`group_${data.group_id}`).emit('stop_typing', {
@@ -149,6 +258,22 @@ io.on('connection', (socket) => {
     // Handle file sharing
     socket.on('share_file', async (data, callback) => {
         try {
+            // Validate file data
+            if (!data || !data.filename || !data.group_id) {
+                if (callback) {
+                    callback({ success: false, error: 'Invalid file data' });
+                }
+                return;
+            }
+            
+            // Check rate limit
+            if (!checkRateLimit(userId, 'messages')) {
+                if (callback) {
+                    callback({ success: false, error: 'Rate limit exceeded. Please wait before sharing another file.' });
+                }
+                return;
+            }
+            
             const connection = await pool.getConnection();
             
             // Insert message with file attachment
@@ -201,7 +326,7 @@ io.on('connection', (socket) => {
         } catch (error) {
             console.error('Error sharing file:', error);
             if (callback) {
-                callback({ success: false, error: error.message });
+                callback({ success: false, error: 'Failed to share file. Please try again.' });
             }
         }
     });
@@ -212,21 +337,21 @@ io.on('connection', (socket) => {
         
         const connectionInfo = activeConnections.get(socket.id);
         if (connectionInfo) {
+            // Update online status
+            updateOnlineStatus(connectionInfo.groupId, connectionInfo.userId, false);
+            
+            // Remove from typing users
+            typingUsers.delete(socket.id);
+            
+            // Remove from active connections
+            activeConnections.delete(socket.id);
+            
             // Notify others that user left
             socket.to(`group_${connectionInfo.groupId}`).emit('user_left', {
                 userId: connectionInfo.userId,
                 userName: connectionInfo.userName
             });
-            
-            // Update online status
-            updateOnlineStatus(connectionInfo.groupId, connectionInfo.userId, false);
-            
-            // Remove from active connections
-            activeConnections.delete(socket.id);
         }
-        
-        // Remove from typing users
-        typingUsers.delete(socket.id);
     });
 });
 
@@ -235,23 +360,30 @@ async function updateOnlineStatus(groupId, userId, isOnline) {
     try {
         const connection = await pool.getConnection();
         
-        if (isOnline) {
-            await connection.execute(
-                'INSERT INTO user_online_status (user_id, group_id, is_online, last_seen) VALUES (?, ?, 1, NOW()) ON DUPLICATE KEY UPDATE is_online = 1, last_seen = NOW()',
-                [userId, groupId]
-            );
-        } else {
-            await connection.execute(
-                'UPDATE user_online_status SET is_online = 0, last_seen = NOW() WHERE user_id = ? AND group_id = ?',
-                [userId, groupId]
-            );
-        }
+        // This could be expanded to track online status in a separate table
+        // For now, we'll just log it
+        console.log(`User ${userId} ${isOnline ? 'came online' : 'went offline'} in group ${groupId}`);
         
         connection.release();
     } catch (error) {
         console.error('Error updating online status:', error);
     }
 }
+
+// Cleanup function to remove old rate limit entries
+setInterval(() => {
+    const now = Date.now();
+    const windowStart = now - 60000; // 1 minute window
+    
+    for (const [key, timestamps] of rateLimitMap.entries()) {
+        const validTimestamps = timestamps.filter(timestamp => timestamp > windowStart);
+        if (validTimestamps.length === 0) {
+            rateLimitMap.delete(key);
+        } else {
+            rateLimitMap.set(key, validTimestamps);
+        }
+    }
+}, 60000); // Run every minute
 
 // API endpoints
 app.use(cors());
@@ -342,7 +474,7 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Initialize and start server
+// Start server
 async function startServer() {
     await initializeDatabase();
     

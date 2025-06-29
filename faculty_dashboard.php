@@ -131,23 +131,16 @@ try {
     $stmt->execute();
     $result = $stmt->get_result();
     $faculty_courses = [];
-<<<<<<< HEAD
     $faculty_course_ids = [];
     while ($row = $result->fetch_assoc()) {
         if ($row['department'] === $faculty['department']) {
             $faculty_courses[] = $row;
             $faculty_course_ids[] = $row['id'];
-=======
-    while ($row = $result->fetch_assoc()) {
-        if ($row['department'] === $faculty['department']) {
-            $faculty_courses[] = $row;
->>>>>>> 30b4f3b1a93181c970c99738e50718b7b04b4735
         }
     }
     $stmt->close();
     
-<<<<<<< HEAD
-    // NEW: Get groups in faculty's courses not mentored by this faculty
+    // Get groups in faculty's courses not mentored by this faculty
     $other_groups = [];
     if (!empty($faculty_course_ids)) {
         $in = implode(',', array_fill(0, count($faculty_course_ids), '?'));
@@ -165,8 +158,6 @@ try {
         $stmt->close();
     }
     
-=======
->>>>>>> 30b4f3b1a93181c970c99738e50718b7b04b4735
     // Calculate statistics
     $total_groups = count($groups);
     $active_groups = 0;
@@ -565,7 +556,6 @@ try {
     <main class="main-content">
         <div class="container">
             <!-- Messages -->
-<<<<<<< HEAD
             <?php if (isset($_SESSION['success_message'])): ?>
                 <div class="message success">
                     <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($_SESSION['success_message']); ?>
@@ -577,18 +567,6 @@ try {
                     <i class="fas fa-exclamation-triangle"></i> <?php echo htmlspecialchars($_SESSION['error_message']); ?>
                 </div>
                 <?php unset($_SESSION['error_message']); ?>
-=======
-            <?php if (isset($success_message)): ?>
-                <div class="message success">
-                    <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($success_message); ?>
-                </div>
-            <?php endif; ?>
-
-            <?php if (isset($error_message)): ?>
-                <div class="message error">
-                    <i class="fas fa-exclamation-triangle"></i> <?php echo htmlspecialchars($error_message); ?>
-                </div>
->>>>>>> 30b4f3b1a93181c970c99738e50718b7b04b4735
             <?php endif; ?>
 
             <!-- Welcome Section -->
@@ -641,9 +619,9 @@ try {
                 </div>
                 <div class="actions-grid">
                     <button class="btn btn-success" id="createGroupBtn">
-                        <i class="fas fa-plus"></i> Create New Group
+                        <i class="fas fa-plus"></i> Create Study Group
                     </button>
-                    <a href="faculty_course_management.php" class="btn btn-outline-success">
+                    <a href="faculty_course_management.php" class="btn btn-outline">
                         <i class="fas fa-book"></i> Manage Courses
                     </a>
                 </div>
@@ -744,7 +722,6 @@ try {
                     </div>
                 <?php endif; ?>
             </section>
-<<<<<<< HEAD
             <!-- NEW: Other Groups in My Courses -->
             <?php if (!empty($other_groups)): ?>
             <section class="groups-section" style="margin-top: 2em;">
@@ -779,8 +756,6 @@ try {
                 </div>
             </section>
             <?php endif; ?>
-=======
->>>>>>> 30b4f3b1a93181c970c99738e50718b7b04b4735
         </div>
     </main>
 
@@ -792,6 +767,7 @@ try {
                 <button class="close-modal" id="closeModal">&times;</button>
             </div>
             <form id="groupForm">
+                <?php echo getCSRFTokenField(); ?>
                 <div class="form-group">
                     <label for="groupName" class="form-label">Group Name</label>
                     <input type="text" id="groupName" class="form-control" placeholder="Enter group name" required>
@@ -810,6 +786,13 @@ try {
                             <?php endforeach; ?>
                         <?php endif; ?>
                     </select>
+                    <?php if (empty($faculty_courses)): ?>
+                        <small style="color: #dc3545; display: block; margin-top: 5px;">
+                            <i class="fas fa-exclamation-triangle"></i> 
+                            You need to have courses assigned to you in your department to create study groups. 
+                            <a href="debug_faculty.php" style="color: #007bff;">Click here to debug</a>
+                        </small>
+                    <?php endif; ?>
                 </div>
                 <div class="form-group">
                     <label for="maxMembers" class="form-label">Maximum Members</label>
@@ -861,6 +844,10 @@ try {
             formData.append('course_id', document.getElementById('groupCourse').value);
             formData.append('max_members', document.getElementById('maxMembers').value);
             formData.append('description', document.getElementById('groupDescription').value);
+            
+            // Add CSRF token
+            const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+            formData.append('csrf_token', csrfToken);
             
             fetch('create_group.php', {
                 method: 'POST',

@@ -18,7 +18,15 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit();
 }
 
-// Get form data
+// Validate CSRF token
+require_once 'config.php';
+if (!isset($_POST['csrf_token']) || !validateCSRFToken($_POST['csrf_token'])) {
+    http_response_code(403);
+    echo json_encode(['status' => 'error', 'message' => 'Invalid security token']);
+    exit();
+}
+
+// Get and validate form data
 $group_name = trim($_POST['group_name'] ?? '');
 $course_id = intval($_POST['course_id'] ?? 0);
 $max_members = intval($_POST['max_members'] ?? 6);
@@ -27,6 +35,11 @@ $description = trim($_POST['description'] ?? '');
 // Validate input
 if (empty($group_name)) {
     echo json_encode(['status' => 'error', 'message' => 'Group name is required']);
+    exit();
+}
+
+if (strlen($group_name) > 100) {
+    echo json_encode(['status' => 'error', 'message' => 'Group name must be less than 100 characters']);
     exit();
 }
 
@@ -40,8 +53,12 @@ if ($max_members < 2 || $max_members > 10) {
     exit();
 }
 
+if (strlen($description) > 1000) {
+    echo json_encode(['status' => 'error', 'message' => 'Description must be less than 1000 characters']);
+    exit();
+}
+
 try {
-    require_once 'config.php';
     $conn = getConnection();
     
     // Get faculty's department
@@ -86,8 +103,8 @@ try {
     $stmt->close();
     
     // Insert new group
-    $stmt = $conn->prepare("INSERT INTO groups (group_name, course_id, max_members, faculty_mentor_id, status) VALUES (?, ?, ?, ?, 'active')");
-    $stmt->bind_param("siii", $group_name, $course_id, $max_members, $faculty_id);
+    $stmt = $conn->prepare("INSERT INTO groups (group_name, description, course_id, max_members, faculty_mentor_id, status) VALUES (?, ?, ?, ?, ?, 'active')");
+    $stmt->bind_param("ssiii", $group_name, $description, $course_id, $max_members, $faculty_id);
     
     if ($stmt->execute()) {
         $group_id = $conn->insert_id;
@@ -120,6 +137,7 @@ try {
     $conn->close();
     
 } catch (Exception $e) {
-    echo json_encode(['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()]);
+    error_log("Create group error: " . $e->getMessage());
+    echo json_encode(['status' => 'error', 'message' => 'An error occurred while creating the group. Please try again.']);
 }
 ?> 

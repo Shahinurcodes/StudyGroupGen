@@ -1,10 +1,6 @@
 <?php
 session_start();
 
-// Enable error reporting for debugging
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
-
 // Include database configuration
 require_once 'config.php';
 
@@ -25,7 +21,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Get database connection
         $conn = getConnection();
         
-        $email = $conn->real_escape_string(trim($_POST['email']));
+        $email = trim($_POST['email']);
         $password = $_POST['password'];
 
         if (empty($email) || empty($password)) {
@@ -39,7 +35,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             // Check students table first
             $stmt = $conn->prepare("SELECT id, full_name, password, department, trimester, cgpa FROM students WHERE email = ? AND email IS NOT NULL");
             if (!$stmt) {
-                throw new Exception("Database error: " . $conn->error);
+                throw new Exception("Database error occurred");
             }
             
             $stmt->bind_param("s", $email);
@@ -59,7 +55,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             if (!$user) {
                 $stmt = $conn->prepare("SELECT id, first_name, last_name, password, department FROM faculty WHERE email = ? AND email IS NOT NULL");
                 if (!$stmt) {
-                    throw new Exception("Database error: " . $conn->error);
+                    throw new Exception("Database error occurred");
                 }
                 
                 $stmt->bind_param("s", $email);
@@ -113,7 +109,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         
     } catch (Exception $e) {
         error_log("Login error: " . $e->getMessage());
-        $response['message'] = 'Database error: ' . $e->getMessage();
+        $response['message'] = 'An error occurred during login. Please try again.';
     }
 } else {
     $response['message'] = 'Invalid request method.';

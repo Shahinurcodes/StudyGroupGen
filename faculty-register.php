@@ -2,11 +2,6 @@
 // Start session at the very top
 session_start();
 
-// Enable error reporting for debugging
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
 // Include database configuration
 require_once 'config.php';
 
@@ -30,7 +25,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         // Get database connection
         $conn = getConnection();
         
-        // Sanitize and retrieve form data (no need for real_escape_string with prepared statements)
+        // Sanitize and retrieve form data
         $first_name = trim($_POST['first_name']);
         $last_name = trim($_POST['last_name']);
         $faculty_id = trim($_POST['faculty_id']);
@@ -60,7 +55,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             // Check for existing faculty ID or email
             $stmt = $conn->prepare("SELECT id FROM faculty WHERE faculty_id = ? OR email = ?");
             if (!$stmt) {
-                throw new Exception("Database error: " . $conn->error);
+                throw new Exception("Database error occurred");
             }
             
             $stmt->bind_param("ss", $faculty_id, $email);
@@ -76,7 +71,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 // Insert new faculty record
                 $insert_stmt = $conn->prepare("INSERT INTO faculty (first_name, last_name, faculty_id, email, password, department, specializations, bio) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
                 if (!$insert_stmt) {
-                    throw new Exception("Database error: " . $conn->error);
+                    throw new Exception("Database error occurred");
                 }
                 
                 $insert_stmt->bind_param("ssssssss", $first_name, $last_name, $faculty_id, $email, $hashed_password, $department, $specializations, $bio);
@@ -96,7 +91,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         
     } catch (Exception $e) {
         error_log("Faculty registration error: " . $e->getMessage());
-        $response['message'] = 'Database error: ' . $e->getMessage();
+        $response['message'] = 'An error occurred during registration. Please try again.';
     }
 
     // Return JSON response
