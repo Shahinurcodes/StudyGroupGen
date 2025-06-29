@@ -32,11 +32,14 @@ try {
     $faculty = $result->fetch_assoc();
     $stmt->close();
     
+<<<<<<< HEAD
     // DEBUG: Show error if faculty or department is missing
     if (!$faculty || empty($faculty['department'])) {
         echo "<div style='color:red; font-weight:bold; padding:10px; background:#fff3cd; border:1px solid #ffeeba; margin:20px 0;'>Faculty department not set or faculty not found. Please check your faculty record in the database.</div>";
     }
     
+=======
+>>>>>>> 30b4f3b1a93181c970c99738e50718b7b04b4735
     // Get faculty's assigned courses
     $stmt = $conn->prepare("SELECT c.*, 
                            (SELECT COUNT(*) FROM groups WHERE course_id = c.id) as group_count

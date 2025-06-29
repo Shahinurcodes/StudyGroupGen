@@ -131,15 +131,22 @@ try {
     $stmt->execute();
     $result = $stmt->get_result();
     $faculty_courses = [];
+<<<<<<< HEAD
     $faculty_course_ids = [];
     while ($row = $result->fetch_assoc()) {
         if ($row['department'] === $faculty['department']) {
             $faculty_courses[] = $row;
             $faculty_course_ids[] = $row['id'];
+=======
+    while ($row = $result->fetch_assoc()) {
+        if ($row['department'] === $faculty['department']) {
+            $faculty_courses[] = $row;
+>>>>>>> 30b4f3b1a93181c970c99738e50718b7b04b4735
         }
     }
     $stmt->close();
     
+<<<<<<< HEAD
     // NEW: Get groups in faculty's courses not mentored by this faculty
     $other_groups = [];
     if (!empty($faculty_course_ids)) {
@@ -158,6 +165,8 @@ try {
         $stmt->close();
     }
     
+=======
+>>>>>>> 30b4f3b1a93181c970c99738e50718b7b04b4735
     // Calculate statistics
     $total_groups = count($groups);
     $active_groups = 0;
@@ -556,6 +565,7 @@ try {
     <main class="main-content">
         <div class="container">
             <!-- Messages -->
+<<<<<<< HEAD
             <?php if (isset($_SESSION['success_message'])): ?>
                 <div class="message success">
                     <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($_SESSION['success_message']); ?>
@@ -567,6 +577,18 @@ try {
                     <i class="fas fa-exclamation-triangle"></i> <?php echo htmlspecialchars($_SESSION['error_message']); ?>
                 </div>
                 <?php unset($_SESSION['error_message']); ?>
+=======
+            <?php if (isset($success_message)): ?>
+                <div class="message success">
+                    <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($success_message); ?>
+                </div>
+            <?php endif; ?>
+
+            <?php if (isset($error_message)): ?>
+                <div class="message error">
+                    <i class="fas fa-exclamation-triangle"></i> <?php echo htmlspecialchars($error_message); ?>
+                </div>
+>>>>>>> 30b4f3b1a93181c970c99738e50718b7b04b4735
             <?php endif; ?>
 
             <!-- Welcome Section -->
@@ -722,6 +744,7 @@ try {
                     </div>
                 <?php endif; ?>
             </section>
+<<<<<<< HEAD
             <!-- NEW: Other Groups in My Courses -->
             <?php if (!empty($other_groups)): ?>
             <section class="groups-section" style="margin-top: 2em;">
@@ -756,6 +779,8 @@ try {
                 </div>
             </section>
             <?php endif; ?>
+=======
+>>>>>>> 30b4f3b1a93181c970c99738e50718b7b04b4735
         </div>
     </main>
 

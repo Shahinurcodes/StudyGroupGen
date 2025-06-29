@@ -652,9 +652,12 @@ if (!empty($members)) {
                     <button class="enroll-btn enrolled-btn">
                         <i class="fas fa-check"></i> Enrolled
                     </button>
+<<<<<<< HEAD
                     <a href="real_time_chat.php?group_id=<?php echo $group_id; ?>" class="enroll-btn" style="background: var(--success); margin-left: 10px; text-decoration: none; display: inline-flex; align-items: center;">
                         <i class="fas fa-comments"></i> Real-time Chat
                     </a>
+=======
+>>>>>>> 30b4f3b1a93181c970c99738e50718b7b04b4735
                 <?php else: ?>
                     <button class="enroll-btn join-btn" onclick="joinGroup(<?php echo $group_id; ?>, '<?php echo htmlspecialchars($group['group_name']); ?>')">
                         <i class="fas fa-plus"></i> Join Group
